@@ -15,6 +15,10 @@ class TableauLikeApp:
         self.df = None
         self.filtered_df = None
 
+        # Initialize filter tracking (support up to 4 filters)
+        self.num_filters = 4
+        self.filter_slots = []
+
         # Create widgets
         self._create_widgets()
 
@@ -83,16 +87,8 @@ class TableauLikeApp:
         )
         self.agg_func.param.watch(self._update_plot, 'value')
 
-        # Filter section
-        self.filter_column = pn.widgets.Select(
-            name='Filter Column',
-            options=['None'],
-            value='None',
-            sizing_mode='stretch_width'
-        )
-        self.filter_column.param.watch(self._on_filter_column_change, 'value')
-
-        self.filter_widget = pn.Column()
+        # Filter section - Create up to 4 filter slots
+        self._create_filter_slots()
 
         # Apply filter button
         self.apply_filter_btn = pn.widgets.Button(
@@ -104,7 +100,7 @@ class TableauLikeApp:
 
         # Reset filter button
         self.reset_filter_btn = pn.widgets.Button(
-            name='Reset Filters',
+            name='Reset All Filters',
             button_type='warning',
             sizing_mode='stretch_width'
         )
@@ -124,6 +120,39 @@ class TableauLikeApp:
             sizing_mode='stretch_both',
             height=600
         )
+
+    def _create_filter_slots(self):
+        """Create up to 4 filter slots"""
+        for i in range(self.num_filters):
+            filter_slot = {
+                'index': i,
+                'column_selector': pn.widgets.Select(
+                    name=f'Filter {i+1} Column',
+                    options=['None'],
+                    value='None',
+                    sizing_mode='stretch_width'
+                ),
+                'widget_container': pn.Column(sizing_mode='stretch_width'),
+                'clear_button': pn.widgets.Button(
+                    name=f'Clear Filter {i+1}',
+                    button_type='light',
+                    sizing_mode='stretch_width',
+                    visible=False
+                )
+            }
+
+            # Set up callback for column selector
+            filter_slot['column_selector'].param.watch(
+                lambda event, idx=i: self._on_filter_column_change(event, idx),
+                'value'
+            )
+
+            # Set up callback for clear button
+            filter_slot['clear_button'].on_click(
+                lambda event, idx=i: self._clear_filter_slot(idx)
+            )
+
+            self.filter_slots.append(filter_slot)
 
     def _on_file_upload(self, event):
         """Handle file upload"""
@@ -176,8 +205,11 @@ class TableauLikeApp:
         self.size_by.options = ['None'] + numeric_columns
         self.size_by.value = 'None'
 
-        self.filter_column.options = ['None'] + columns
-        self.filter_column.value = 'None'
+        # Update all filter slot column selectors
+        for filter_slot in self.filter_slots:
+            filter_slot['column_selector'].options = ['None'] + columns
+            if filter_slot['column_selector'].value not in ['None'] + columns:
+                filter_slot['column_selector'].value = 'None'
 
     def _update_data_preview(self):
         """Update data preview table"""
@@ -200,12 +232,15 @@ class TableauLikeApp:
 """
         self.info_pane.object = info_text
 
-    def _on_filter_column_change(self, event):
-        """Handle filter column change"""
+    def _on_filter_column_change(self, event, filter_index):
+        """Handle filter column change for a specific filter slot"""
         if event.new == 'None' or self.df is None:
-            self.filter_widget.clear()
+            filter_slot = self.filter_slots[filter_index]
+            filter_slot['widget_container'].clear()
+            filter_slot['clear_button'].visible = False
             return
 
+        filter_slot = self.filter_slots[filter_index]
         column = event.new
         dtype = self.df[column].dtype
 
@@ -232,32 +267,43 @@ class TableauLikeApp:
                 max_items=20
             )
 
-        self.filter_widget.clear()
-        self.filter_widget.append(filter_widget)
+        filter_slot['widget_container'].clear()
+        filter_slot['widget_container'].append(filter_widget)
+        filter_slot['clear_button'].visible = True
+
+    def _clear_filter_slot(self, filter_index):
+        """Clear a specific filter slot"""
+        filter_slot = self.filter_slots[filter_index]
+        filter_slot['column_selector'].value = 'None'
+        filter_slot['widget_container'].clear()
+        filter_slot['clear_button'].visible = False
 
     def _apply_filters(self, event=None):
-        """Apply filters to data"""
+        """Apply all active filters to data"""
         if self.df is None:
             return
 
         self.filtered_df = self.df.copy()
 
-        if self.filter_column.value != 'None' and len(self.filter_widget) > 0:
-            column = self.filter_column.value
-            filter_widget = self.filter_widget[0]
+        # Apply each filter slot sequentially
+        for filter_slot in self.filter_slots:
+            column = filter_slot['column_selector'].value
 
-            if isinstance(filter_widget, pn.widgets.RangeSlider):
-                min_val, max_val = filter_widget.value
-                self.filtered_df = self.filtered_df[
-                    (self.filtered_df[column] >= min_val) &
-                    (self.filtered_df[column] <= max_val)
-                ]
-            elif isinstance(filter_widget, pn.widgets.MultiChoice):
-                selected_values = filter_widget.value
-                if selected_values:
+            if column != 'None' and len(filter_slot['widget_container']) > 0:
+                filter_widget = filter_slot['widget_container'][0]
+
+                if isinstance(filter_widget, pn.widgets.RangeSlider):
+                    min_val, max_val = filter_widget.value
                     self.filtered_df = self.filtered_df[
-                        self.filtered_df[column].isin(selected_values)
+                        (self.filtered_df[column] >= min_val) &
+                        (self.filtered_df[column] <= max_val)
                     ]
+                elif isinstance(filter_widget, pn.widgets.MultiChoice):
+                    selected_values = filter_widget.value
+                    if selected_values:
+                        self.filtered_df = self.filtered_df[
+                            self.filtered_df[column].isin(selected_values)
+                        ]
 
         self._update_data_preview()
         self._update_info()
@@ -269,8 +315,12 @@ class TableauLikeApp:
             return
 
         self.filtered_df = self.df.copy()
-        self.filter_column.value = 'None'
-        self.filter_widget.clear()
+
+        # Clear all filter slots
+        for filter_slot in self.filter_slots:
+            filter_slot['column_selector'].value = 'None'
+            filter_slot['widget_container'].clear()
+            filter_slot['clear_button'].visible = False
 
         self._update_data_preview()
         self._update_info()
@@ -384,6 +434,22 @@ class TableauLikeApp:
 
     def _create_layout(self):
         """Create the app layout"""
+        # Build filter UI components
+        filter_components = [pn.pane.Markdown("### Filters (Up to 4)")]
+
+        for i, filter_slot in enumerate(self.filter_slots):
+            filter_components.extend([
+                pn.pane.Markdown(f"**Filter {i+1}**", margin=(10, 5, 5, 5)),
+                filter_slot['column_selector'],
+                filter_slot['widget_container'],
+                filter_slot['clear_button']
+            ])
+
+        filter_components.extend([
+            pn.layout.Divider(),
+            pn.Row(self.apply_filter_btn, self.reset_filter_btn)
+        ])
+
         # Sidebar with controls
         sidebar = pn.Column(
             pn.pane.Markdown("# 📊 Smart Plot"),
@@ -399,10 +465,7 @@ class TableauLikeApp:
             self.size_by,
             self.agg_func,
             pn.layout.Divider(),
-            pn.pane.Markdown("### Filters"),
-            self.filter_column,
-            self.filter_widget,
-            pn.Row(self.apply_filter_btn, self.reset_filter_btn),
+            *filter_components,
             sizing_mode='stretch_width',
             width=350,
             scroll=True

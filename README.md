@@ -11,9 +11,11 @@ A powerful, interactive data visualization web application built with Python Pan
   - Color grouping by categorical columns
   - Size mapping for scatter plots
   - Aggregation functions (Sum, Mean, Median, Count, Min, Max, Std)
-- **🔍 Dynamic Filtering**:
+- **🔍 Advanced Filtering**:
+  - Support up to 4 simultaneous filters
   - Numeric columns: Range sliders
   - Categorical columns: Multi-select dropdowns
+  - Individual filter clearing or reset all at once
 - **📋 Data Preview**: Interactive table with pagination
 - **📈 Real-time Updates**: All visualizations update instantly as you change settings
 - **💾 Memory Efficient**: Handles large datasets with efficient pandas operations
@@ -66,11 +68,15 @@ panel serve app.py --show --autoreload
    - **Size By**: Map point sizes to a numeric column (for scatter plots)
    - **Aggregation**: Apply aggregation functions for grouped data
 
-3. **Apply Filters**
-   - Select a column from the "Filter Column" dropdown
-   - Use the range slider (numeric) or multi-select (categorical) to filter
-   - Click "Apply Filters" to update the visualization
-   - Click "Reset Filters" to clear all filters
+3. **Apply Filters (Up to 4)**
+   - The app supports up to 4 simultaneous filters
+   - For each filter slot:
+     - Select a column from the "Filter X Column" dropdown
+     - Use the range slider (numeric) or multi-select (categorical) to set filter criteria
+     - Click "Clear Filter X" to remove that specific filter
+   - Click "Apply Filters" to update the visualization with all active filters
+   - Click "Reset All Filters" to clear all filters at once
+   - Filters are applied sequentially, allowing complex data filtering
 
 4. **Explore Data**
    - View the interactive plot with hover tooltips
