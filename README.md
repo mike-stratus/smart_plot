@@ -8,7 +8,8 @@ A powerful, interactive data visualization web application built with Python Pan
 - **📊 Multiple Chart Types**: Bar, Line, Scatter, Box, Histogram, Violin, Heatmap, and Pie charts
 - **🎨 Interactive Controls**:
   - X-axis and Y-axis column selection
-  - Color grouping by categorical columns
+  - Color grouping by categorical or numeric columns
+  - Continuous color scales for numeric columns (automatic)
   - Size mapping for scatter plots
   - Aggregation functions (Sum, Mean, Median, Count, Min, Max, Std)
 - **🔍 Advanced Filtering**:
@@ -64,7 +65,10 @@ panel serve app.py --show --autoreload
    - **Chart Type**: Choose from 8 different chart types
    - **X-Axis**: Select the column for the horizontal axis
    - **Y-Axis**: Select the column for the vertical axis
-   - **Color By**: Group data by a categorical column (optional)
+   - **Color By**: Group data by any column (optional)
+     - Categorical columns: Uses discrete color palette
+     - Numeric columns: Automatically uses continuous color scale (Viridis)
+     - For Box/Histogram/Violin with numeric colors: Values are binned into 5 ranges
    - **Size By**: Map point sizes to a numeric column (for scatter plots)
    - **Aggregation**: Apply aggregation functions for grouped data
 

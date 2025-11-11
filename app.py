@@ -340,6 +340,13 @@ class TableauLikeApp:
             size_col = self.size_by.value if self.size_by.value != 'None' else None
             agg = self.agg_func.value
 
+            # Determine if color column is numeric (for continuous color scale)
+            color_continuous = False
+            color_scale = None
+            if color_col and pd.api.types.is_numeric_dtype(df[color_col]):
+                color_continuous = True
+                color_scale = 'Viridis'
+
             # Apply aggregation if needed
             if agg != 'None' and chart_type in ['Bar', 'Line']:
                 agg_func_map = {
@@ -362,34 +369,75 @@ class TableauLikeApp:
             fig = None
 
             if chart_type == 'Bar':
-                fig = px.bar(df, x=x_col, y=y_col, color=color_col,
-                            title=f'{chart_type} Chart',
-                            template='plotly_white')
-
-            elif chart_type == 'Line':
-                fig = px.line(df, x=x_col, y=y_col, color=color_col,
-                             title=f'{chart_type} Chart',
-                             template='plotly_white')
-
-            elif chart_type == 'Scatter':
-                fig = px.scatter(df, x=x_col, y=y_col, color=color_col, size=size_col,
+                if color_continuous:
+                    fig = px.bar(df, x=x_col, y=y_col, color=color_col,
+                                color_continuous_scale=color_scale,
+                                title=f'{chart_type} Chart',
+                                template='plotly_white')
+                else:
+                    fig = px.bar(df, x=x_col, y=y_col, color=color_col,
                                 title=f'{chart_type} Chart',
                                 template='plotly_white')
 
+            elif chart_type == 'Line':
+                if color_continuous:
+                    # For continuous colors in line charts, use scatter with lines
+                    fig = px.scatter(df, x=x_col, y=y_col, color=color_col,
+                                    color_continuous_scale=color_scale,
+                                    title=f'{chart_type} Chart',
+                                    template='plotly_white')
+                    fig.update_traces(mode='lines+markers')
+                else:
+                    fig = px.line(df, x=x_col, y=y_col, color=color_col,
+                                 title=f'{chart_type} Chart',
+                                 template='plotly_white')
+
+            elif chart_type == 'Scatter':
+                if color_continuous:
+                    fig = px.scatter(df, x=x_col, y=y_col, color=color_col, size=size_col,
+                                    color_continuous_scale=color_scale,
+                                    title=f'{chart_type} Chart',
+                                    template='plotly_white')
+                else:
+                    fig = px.scatter(df, x=x_col, y=y_col, color=color_col, size=size_col,
+                                    title=f'{chart_type} Chart',
+                                    template='plotly_white')
+
             elif chart_type == 'Box':
-                fig = px.box(df, x=x_col, y=y_col, color=color_col,
-                            title=f'{chart_type} Chart',
-                            template='plotly_white')
+                if color_continuous:
+                    # Box plots work better with discrete colors, so bin the continuous variable
+                    df[f'{color_col}_binned'] = pd.cut(df[color_col], bins=5).astype(str)
+                    fig = px.box(df, x=x_col, y=y_col, color=f'{color_col}_binned',
+                                title=f'{chart_type} Chart (Color: {color_col} binned)',
+                                template='plotly_white')
+                else:
+                    fig = px.box(df, x=x_col, y=y_col, color=color_col,
+                                title=f'{chart_type} Chart',
+                                template='plotly_white')
 
             elif chart_type == 'Histogram':
-                fig = px.histogram(df, x=x_col, color=color_col,
-                                  title=f'{chart_type} Chart',
-                                  template='plotly_white')
+                if color_continuous:
+                    # Histogram works better with discrete colors, so bin the continuous variable
+                    df[f'{color_col}_binned'] = pd.cut(df[color_col], bins=5).astype(str)
+                    fig = px.histogram(df, x=x_col, color=f'{color_col}_binned',
+                                      title=f'{chart_type} Chart (Color: {color_col} binned)',
+                                      template='plotly_white')
+                else:
+                    fig = px.histogram(df, x=x_col, color=color_col,
+                                      title=f'{chart_type} Chart',
+                                      template='plotly_white')
 
             elif chart_type == 'Violin':
-                fig = px.violin(df, x=x_col, y=y_col, color=color_col,
-                               title=f'{chart_type} Chart',
-                               template='plotly_white')
+                if color_continuous:
+                    # Violin plots work better with discrete colors, so bin the continuous variable
+                    df[f'{color_col}_binned'] = pd.cut(df[color_col], bins=5).astype(str)
+                    fig = px.violin(df, x=x_col, y=y_col, color=f'{color_col}_binned',
+                                   title=f'{chart_type} Chart (Color: {color_col} binned)',
+                                   template='plotly_white')
+                else:
+                    fig = px.violin(df, x=x_col, y=y_col, color=color_col,
+                                   title=f'{chart_type} Chart',
+                                   template='plotly_white')
 
             elif chart_type == 'Heatmap':
                 # For heatmap, pivot the data
