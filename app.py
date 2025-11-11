@@ -467,7 +467,7 @@ class TableauLikeApp:
             pn.layout.Divider(),
             *filter_components,
             sizing_mode='stretch_width',
-            width=350,
+            width=380,
             scroll=True
         )
 
@@ -478,7 +478,8 @@ class TableauLikeApp:
             pn.layout.Divider(),
             pn.pane.Markdown("## Data Preview"),
             self.data_table,
-            sizing_mode='stretch_both'
+            sizing_mode='stretch_width',
+            min_width=600
         )
 
         # Complete layout
@@ -488,7 +489,8 @@ class TableauLikeApp:
             main=[main_content],
             theme='default',
             theme_toggle=False,
-            header_background='#2196F3'
+            header_background='#2196F3',
+            sidebar_width=380
         )
 
         return template
